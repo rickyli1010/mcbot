@@ -30,7 +30,7 @@ const ec2 = new EC2Client({ region: AWS_REGION });
 // Define slash commands
 const commands = [
   {
-    name: 'ec2',
+    name: 'mc',
     description: 'Manage the Minecraft EC2 instance',
     options: [
       {
@@ -73,7 +73,7 @@ async function getInstanceState() {
   };
 }
 
-client.on('ready', () => {
+client.on('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}!`);
   registerCommands();
 });
@@ -81,7 +81,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === 'ec2') {
+  if (interaction.commandName === 'mc') {
     const action = interaction.options.getString('action');
 
     try {
@@ -112,7 +112,7 @@ client.on('interactionCreate', async (interaction) => {
 
           // Optionally, we could poll until it's running to get the IP, but for now we just confirm it's starting
           await interaction.followUp(
-            'Start command sent! Use `/ec2 status` in a few moments to get the IP address.'
+            'Start command sent! Use `/mc action:status` in a few moments to get the IP address.'
           );
         } else {
           await interaction.editReply(

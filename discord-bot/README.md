@@ -1,6 +1,6 @@
 # Discord Bot Setup (Local / Heroku)
 
-This directory contains a Node.js application that listens for slash commands in Discord (`/ec2 start`, `/ec2 stop`, `/ec2 status`). It uses the AWS SDK to turn on and shut down your EC2 instance.
+This directory contains a Node.js application that listens for slash commands in Discord (`/mc start`, `/mc stop`, `/mc status`). It uses the AWS SDK to turn on and shut down your EC2 instance.
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ This directory contains a Node.js application that listens for slash commands in
 1.  Navigate into this folder: `cd discord-bot`
 2.  Run `npm install`.
 3.  Copy `.env.example` to `.env` and fill in all the details.
-4.  Run `node index.js`. (The first time it runs, it will register the `/ec2` slash command).
+4.  Run `node index.js`. (The first time it runs, it will register the `/mc` slash command).
 
 ## Heroku Deployment
 
