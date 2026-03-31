@@ -8,11 +8,18 @@ const {
   StopInstancesCommand
 } = require('@aws-sdk/client-ec2');
 
-// Environment variables
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID; // Application ID
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-const INSTANCE_ID = process.env.INSTANCE_ID;
+// Environment variables, trimmed to prevent accidental invisible spaces from copy/pasting in Render
+const DISCORD_TOKEN = (process.env.DISCORD_TOKEN || '').trim();
+const DISCORD_CLIENT_ID = (process.env.DISCORD_CLIENT_ID || '').trim(); // Application ID
+const AWS_REGION = (process.env.AWS_REGION || 'us-east-1').trim();
+const INSTANCE_ID = (process.env.INSTANCE_ID || '').trim();
+
+console.log('--- ENV CHECK ---');
+console.log(`DISCORD_TOKEN length: ${DISCORD_TOKEN ? DISCORD_TOKEN.length : 'MISSING'}`);
+console.log(`DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID || 'MISSING'}`);
+console.log(`INSTANCE_ID: ${INSTANCE_ID || 'MISSING'}`);
+console.log(`AWS_REGION: ${AWS_REGION}`);
+console.log('-----------------');
 
 if (!DISCORD_TOKEN || !DISCORD_CLIENT_ID || !INSTANCE_ID) {
   console.error(
@@ -85,12 +92,18 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Dummy web server listening on port ${port} (Required for Render Web Service)`);
+  console.log(
+    `Dummy web server listening on port ${port} (Required for Render Web Service)`
+  );
 });
 
 // -------------------------------------------------------------
 // Discord Bot Logic
 // -------------------------------------------------------------
+client.on('error', (error) => {
+  console.error('An error occurred with the Discord client:', error);
+});
+
 client.on('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}!`);
   registerCommands();
@@ -172,4 +185,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(DISCORD_TOKEN);
+console.log('Sending login request to Discord...');
+client.login(DISCORD_TOKEN).catch((error) => {
+  console.error('Failed to log in to Discord!', error);
+});
