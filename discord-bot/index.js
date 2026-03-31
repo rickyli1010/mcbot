@@ -1,5 +1,5 @@
-require('dotenv').config();
 const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
+const express = require('express');
 const {
   EC2Client,
   DescribeInstancesCommand,
@@ -73,6 +73,23 @@ async function getInstanceState() {
   };
 }
 
+// -------------------------------------------------------------
+// Dummy Express Server for Render "Web Service" Port Binding
+// -------------------------------------------------------------
+const app = express();
+const port = process.env.PORT || 10000;
+
+app.get('/', (req, res) => {
+  res.send('Minecraft EC2 Discord Bot is running!');
+});
+
+app.listen(port, () => {
+  console.log(`Dummy web server listening on port ${port} (Required for Render Web Service)`);
+});
+
+// -------------------------------------------------------------
+// Discord Bot Logic
+// -------------------------------------------------------------
 client.on('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}!`);
   registerCommands();
