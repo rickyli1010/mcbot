@@ -38,8 +38,18 @@ function getAWS() {
   if (!awsComponents) {
     console.log('[AWS SDK] Dynamically compiling and loading massive SDK components into RAM...');
     const aws = require('./aws-service.js');
+    const awsAccessKey = (process.env.AWS_ACCESS_KEY_ID || '').trim();
+    const awsSecretKey = (process.env.AWS_SECRET_ACCESS_KEY || '').trim();
+    
+    // Explicitly pass trimmed credentials rather than trusting the SDK's raw process.env parser to survive copy-paste spaces
     awsComponents = {
-      ec2: new aws.EC2Client({ region: AWS_REGION }),
+      ec2: new aws.EC2Client({ 
+        region: AWS_REGION,
+        credentials: {
+          accessKeyId: awsAccessKey,
+          secretAccessKey: awsSecretKey
+        }
+      }),
       DescribeInstancesCommand: aws.DescribeInstancesCommand,
       StartInstancesCommand: aws.StartInstancesCommand,
       StopInstancesCommand: aws.StopInstancesCommand
