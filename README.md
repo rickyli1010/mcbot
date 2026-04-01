@@ -16,7 +16,7 @@ This repository contains two main components to help manage and reduce costs for
 ## Advanced Setup
 
 ### 1. Discord Bot Setup
-Please refer to `discord-bot/README.md` for full instructions on setting up Discord tokens, IAM permissions, and running the bot on Heroku or locally.
+Please refer to `discord-bot/README.md` for full instructions on setting up Discord tokens, IAM permissions, and running the bot on Render or locally.
 
 ### 2. Auto-Shutdown Script Setup
 Please refer to `ec2-scripts/README.md` for detailed instructions on deploying the Python script to your EC2 instance, setting up the cron job, and configuring permissions.

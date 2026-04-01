@@ -1,4 +1,4 @@
-# Discord Bot Setup (Local / Render)
+# Discord Bot Setup (Local / Discloud)
 
 This directory contains a Node.js application that listens for slash commands in Discord (`/mc start`, `/mc stop`, `/mc status`). It uses the AWS SDK to turn on and shut down your EC2 instance.
 
@@ -31,17 +31,24 @@ This directory contains a Node.js application that listens for slash commands in
 3.  Copy `.env.example` to `.env` and fill in all the details.
 4.  Run `node index.js`. (The first time it runs, it will register the `/mc` slash command).
 
-## Render.com Deployment
+## Discloud Deployment (100MB Free Tier Optimization)
 
-Deploying as a **Web Service** on Render is a great option because Render offers a free tier for Web Services! (The bot includes a lightweight dummy web server just so Render detects an open port).
+Node.js is naturally a memory hog and struggles to fit inside a 100MB RAM limit if it has to parse the thousands of external files in `node_modules/`. To fix this, we bundle and split the application into separate highly-optimized chunks inside the `dist/` folder.
 
-1.  Create a new **Web Service** on [Render.com](https://render.com/).
-2.  Connect your GitHub repository containing this bot.
-3.  Configure the service:
-    - **Root Directory**: `discord-bot` (Important: This tells Render where your code is)
-    - **Build Command**: `npm install`
-    - **Start Command**: `npm start`
-      _(Alternatively, if you leave the Root Directory blank, use `cd discord-bot && npm install` for build, and `cd discord-bot && npm start` for start)_
-4.  In the service Settings > Environment (or during creation), add all the environment variables from your `.env` file (`DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `INSTANCE_ID`).
-5.  Save and deploy. The bot should start running automatically!
-    _(Tip: Render free tier Web Services spin down after 15 minutes of inbound inactivity. You can use a free ping service like cron-job.org to ping your `https://your-app.onrender.com` URL every 10 minutes to keep your Discord bot awake 24/7!)_
+1.  Run `npm run build` on your local machine. This will use `esbuild` to split your bot into multiple files inside a `dist/` folder. The heavy AWS SDK is placed in a totally separate chunk so it doesn't needlessly load into memory on startup!
+2.  Make sure your `discloud.config` is pointing to the `dist` folder:
+    ```
+    NAME=mcbot
+    TYPE=bot
+    MAIN=dist/index.js
+    RAM=100
+    VERSION=latest
+    START=node --max-old-space-size=45 dist/index.js
+    ```
+3.  Compress the `discord-bot` folder into a `.zip` file (using `discloud zip`). **Important:** The `.discloudignore` will prevent `node_modules` from uploading, which saves massive memory allocation on Discloud's server!
+4.  Upload the `.zip` file to Discloud.
+5.  Configure your environment variables in the Discloud panel.
+6.  **CRITICAL:** In the Discloud Dashboard, ensure the **Start Command** is explicitly set to:
+    `node --max-old-space-size=45 dist/index.js`
+    *(If you leave it as `npm run start`, it will launch NPM which silently consumes 30MB of RAM in the background and causes the bot to immediately crash due to lack of RAM!)*
+7.  Start the bot! It will connect cleanly using only ~30-40MB of RAM. Validating AWS queries will execute seamlessly when someone runs the slash command.

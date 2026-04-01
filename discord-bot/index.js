@@ -1,25 +1,10 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
-const express = require('express');
-const {
-  EC2Client,
-  DescribeInstancesCommand,
-  StartInstancesCommand,
-  StopInstancesCommand
-} = require('@aws-sdk/client-ec2');
-
+const { Client, GatewayIntentBits, Options } = require('discord.js');
 // Environment variables, trimmed to prevent accidental invisible spaces from copy/pasting in Render
 const DISCORD_TOKEN = (process.env.DISCORD_TOKEN || '').trim();
 const DISCORD_CLIENT_ID = (process.env.DISCORD_CLIENT_ID || '').trim(); // Application ID
 const AWS_REGION = (process.env.AWS_REGION || 'us-east-1').trim();
 const INSTANCE_ID = (process.env.INSTANCE_ID || '').trim();
-
-console.log('--- ENV CHECK ---');
-console.log(`DISCORD_TOKEN length: ${DISCORD_TOKEN ? DISCORD_TOKEN.length : 'MISSING'}`);
-console.log(`DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID || 'MISSING'}`);
-console.log(`INSTANCE_ID: ${INSTANCE_ID || 'MISSING'}`);
-console.log(`AWS_REGION: ${AWS_REGION}`);
-console.log('-----------------');
 
 if (!DISCORD_TOKEN || !DISCORD_CLIENT_ID || !INSTANCE_ID) {
   console.error(
@@ -28,12 +13,41 @@ if (!DISCORD_TOKEN || !DISCORD_CLIENT_ID || !INSTANCE_ID) {
   process.exit(1);
 }
 
-// Initialize Discord Client
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Initialize Discord Client with absolutely ZERO internal caching to survive 100MB Discloud limit
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds],
+  makeCache: Options.cacheWithLimits({
+    MessageManager: 0,
+    ThreadManager: 0,
+    UserManager: 0,
+    GuildMemberManager: 0,
+    GuildEmojiManager: 0,
+    GuildRolesManager: 0,
+    PresenceManager: 0,
+    ReactionManager: 0,
+    VoiceStateManager: 0,
+    GuildChannelManager: 0,
+    ApplicationCommandManager: 0
+  })
+});
 
-// Initialize AWS EC2 Client
-// Note: It will use credentials from process.env.AWS_ACCESS_KEY_ID and process.env.AWS_SECRET_ACCESS_KEY automatically
-const ec2 = new EC2Client({ region: AWS_REGION });
+// Lazy load AWS EC2 dependencies to completely shield RAM from massive 25MB SDK during websocket handshake
+let awsComponents = null;
+
+function getAWS() {
+  if (!awsComponents) {
+    console.log('[AWS SDK] Dynamically compiling and loading massive SDK components into RAM...');
+    const aws = require('./aws-service.js');
+    awsComponents = {
+      ec2: new aws.EC2Client({ region: AWS_REGION }),
+      DescribeInstancesCommand: aws.DescribeInstancesCommand,
+      StartInstancesCommand: aws.StartInstancesCommand,
+      StopInstancesCommand: aws.StopInstancesCommand
+    };
+    console.log('[AWS SDK] Booted!');
+  }
+  return awsComponents;
+}
 
 // Define slash commands
 const commands = [
@@ -56,9 +70,9 @@ const commands = [
   }
 ];
 
-// Register slash commands (run once on startup or via a separate script, simplified here)
-const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-
+// Register slash commands (already registered previously, no need to boot the heavy REST client on every start)
+// const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+/*
 async function registerCommands() {
   try {
     console.log('Started refreshing application (/) commands.');
@@ -70,8 +84,10 @@ async function registerCommands() {
     console.error('Error registering commands:', error);
   }
 }
+*/
 
 async function getInstanceState() {
+  const { ec2, DescribeInstancesCommand } = getAWS();
   const command = new DescribeInstancesCommand({ InstanceIds: [INSTANCE_ID] });
   const response = await ec2.send(command);
   const instance = response.Reservations[0].Instances[0];
@@ -82,31 +98,19 @@ async function getInstanceState() {
 }
 
 // -------------------------------------------------------------
-// Dummy Express Server for Render "Web Service" Port Binding
-// -------------------------------------------------------------
-const app = express();
-const port = process.env.PORT || 10000;
-
-app.get('/', (req, res) => {
-  res.send('Minecraft EC2 Discord Bot is running!');
-});
-
-app.listen(port, () => {
-  console.log(
-    `Dummy web server listening on port ${port} (Required for Render Web Service)`
-  );
-});
-
-// -------------------------------------------------------------
 // Discord Bot Logic
 // -------------------------------------------------------------
+client.on('debug', (info) => {
+  console.log(`[DISCORD DEBUG] ${info}`);
+});
+
 client.on('error', (error) => {
   console.error('An error occurred with the Discord client:', error);
 });
 
 client.on('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  registerCommands();
+  // registerCommands(); // Bypassed to save RAM
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -136,6 +140,7 @@ client.on('interactionCreate', async (interaction) => {
           await interaction.editReply(
             'Starting the Minecraft server... Please wait a minute or two for it to fully boot up.'
           );
+          const { ec2, StartInstancesCommand } = getAWS();
           const startCommand = new StartInstancesCommand({
             InstanceIds: [INSTANCE_ID]
           });
@@ -158,6 +163,7 @@ client.on('interactionCreate', async (interaction) => {
           await interaction.editReply('The server is already stopped.');
         } else if (state === 'running') {
           await interaction.editReply('Stopping the Minecraft server...');
+          const { ec2, StopInstancesCommand } = getAWS();
           const stopCommand = new StopInstancesCommand({
             InstanceIds: [INSTANCE_ID]
           });
