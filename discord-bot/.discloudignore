@@ -1,2 +1,11 @@
+# Dependencies
 node_modules
-.env
+
+# Logs
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build outputs
+dist
+build

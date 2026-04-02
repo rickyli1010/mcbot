@@ -38,8 +38,17 @@ function getAWS() {
   if (!awsComponents) {
     console.log('[AWS SDK] Dynamically compiling and loading massive SDK components into RAM...');
     const aws = require('./aws-service.js');
-    const awsAccessKey = (process.env.AWS_ACCESS_KEY_ID || '').trim();
-    const awsSecretKey = (process.env.AWS_SECRET_ACCESS_KEY || '').trim();
+    
+    // Aggressively strip both leading/trailing spaces AND accidental quotes from the Discloud dashboard
+    const awsAccessKey = (process.env.AWS_ACCESS_KEY_ID || '').replace(/['"]/g, '').trim();
+    const awsSecretKey = (process.env.AWS_SECRET_ACCESS_KEY || '').replace(/['"]/g, '').trim();
+
+    console.log(`[AWS DEBUG] Detected Access Key ID: Length ${awsAccessKey.length}, Starts with: ${awsAccessKey.substring(0, 4)}`);
+    console.log(`[AWS DEBUG] Detected Secret Key: Length ${awsSecretKey.length}`);
+    
+    if (!awsAccessKey || !awsSecretKey) {
+      console.warn('[AWS WARNING] Access Key or Secret Key is completely empty! You must configure these in the Discloud dashboard Environment Variables.');
+    }
     
     // Explicitly pass trimmed credentials rather than trusting the SDK's raw process.env parser to survive copy-paste spaces
     awsComponents = {
