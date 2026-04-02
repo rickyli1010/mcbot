@@ -5,15 +5,21 @@ This directory contains a Node.js application that listens for slash commands in
 ## Prerequisites
 
 1.  **Discord Bot Token**: Create an application on the [Discord Developer Portal](https://discord.com/developers/applications), add a bot, and get its token.
-2.  **AWS IAM User**: Create an IAM user in AWS with programmatic access (Access Key and Secret Key) and attach this inline policy:
+2.  **AWS IAM User**: Create an IAM user in AWS with programmatic access (Access Key and Secret Key) and attach this strict inline policy:
     ```json
     {
       "Version": "2012-10-17",
       "Statement": [
         {
+          "Sid": "AllowListInstances",
+          "Effect": "Allow",
+          "Action": "ec2:DescribeInstances",
+          "Resource": "*"
+        },
+        {
+          "Sid": "AllowStartStopInstances",
           "Effect": "Allow",
           "Action": [
-            "ec2:DescribeInstances",
             "ec2:StartInstances",
             "ec2:StopInstances"
           ],
