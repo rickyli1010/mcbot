@@ -39,22 +39,21 @@ This directory contains a Node.js application that listens for slash commands in
 
 ## Discloud Deployment (100MB Free Tier Optimization)
 
-Node.js is naturally a memory hog and struggles to fit inside a 100MB RAM limit if it has to parse the thousands of external files in `node_modules/`. To fix this, we bundle and split the application into separate highly-optimized chunks inside the `dist/` folder.
+Node.js is naturally a memory hog, but by completely eradicating the physical AWS SDK module and replacing it with a custom native 10KB fetch wrapper, we effortlessly guarantee execution within extreme RAM limitations natively!
 
-1.  Run `npm run build` on your local machine. This will use `esbuild` to split your bot into multiple files inside a `dist/` folder. The heavy AWS SDK is placed in a totally separate chunk so it doesn't needlessly load into memory on startup!
-2.  Make sure your `discloud.config` is pointing to the `dist` folder:
+1.  Make sure your `discloud.config` is perfectly targeting `index.js`:
     ```
     NAME=mcbot
     TYPE=bot
-    MAIN=dist/index.js
+    MAIN=index.js
     RAM=100
     VERSION=latest
-    START=node --max-old-space-size=45 dist/index.js
+    START=node --max-old-space-size=65 index.js
     ```
-3.  Compress the `discord-bot` folder into a `.zip` file (using `discloud zip`). **Important:** The `.discloudignore` will prevent `node_modules` from uploading, which saves massive memory allocation on Discloud's server!
-4.  Upload the `.zip` file to Discloud.
-5.  Configure your environment variables in the Discloud panel.
-6.  **CRITICAL:** In the Discloud Dashboard, ensure the **Start Command** is explicitly set to:
-    `node --max-old-space-size=45 dist/index.js`
-    *(If you leave it as `npm run start`, it will launch NPM which silently consumes 30MB of RAM in the background and causes the bot to immediately crash due to lack of RAM!)*
-7.  Start the bot! It will connect cleanly using only ~30-40MB of RAM. Validating AWS queries will execute seamlessly when someone runs the slash command.
+2.  Compress the `discord-bot` folder into a `.zip` file (using `discloud zip`). **Important:** The `.discloudignore` will correctly prevent your local `node_modules` from uploading.
+3.  Upload the `.zip` file to Discloud.
+4.  Configure your environment variables in the Discloud panel.
+5.  **CRITICAL:** In the Discloud Dashboard, ensure the **Start Command** is explicitly set to:
+    `node --max-old-space-size=65 index.js`
+    *(If you leave it as `npm run start`, it will launch NPM which silently consumes 30MB of RAM in the background and causes the bot to instantly crash due to lack of RAM!)*
+6.  Start the bot! It will cleanly connect and natively execute SigV4 secured HTTP commands silently.

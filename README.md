@@ -2,7 +2,7 @@
 
 This repository contains two main components to help manage and reduce costs for a Minecraft server hosted on AWS EC2.
 
-1. **Discord Bot (`discord-bot/`)**: A Node.js application that listens to Discord slash commands (`/mc start`, `/mc stop`, `/mc status`) to allow users to start, stop, and check the status of the EC2 instance hosting the Minecraft server. It uses `@aws-sdk/client-ec2` to interact with AWS.
+1. **Discord Bot (`discord-bot/`)**: A Node.js application that listens to Discord slash commands (`/mc start`, `/mc stop`, `/mc status`) to allow users to start, stop, and check the status of the EC2 instance hosting the Minecraft server. It natively utilizes a zero-dependency `fetch` wrapper and `aws4` SigV4 cryptographic signatures to trigger AWS hardware via the EC2 API without breaching the Discloud 100MB RAM limit.
 2. **Auto-Shutdown Script (`ec2-scripts/`)**: A Python script designed to run continuously (via cron) on the EC2 instance itself. It monitors the local Minecraft server using `mcstatus` and will automatically shut down the EC2 instance if the server is empty for 15 minutes, ensuring you don't pay for idle time.
 
 ## Usage Flow

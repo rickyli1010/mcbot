@@ -1,0 +1,29 @@
+[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+# We assume the default ubuntu user. Change 'ubuntu' if your EC2 user is different.
+User=ubuntu
+Group=ubuntu
+
+# Automatically restart if the server crashes
+Restart=always
+
+# The directory where your server.jar is located
+WorkingDirectory=/home/ubuntu/minecraft
+
+# The command to start the server.
+# -Xms1024M and -Xmx1024M sets min and max RAM to 1024MB.
+# nogui prevents a pop-up window which isn't supported in command line interfaces.
+ExecStart=/usr/bin/java -Xms1024M -Xmx1024M -jar server.jar nogui
+
+# Bedrock requires the LD_LIBRARY_PATH to find its internal files
+# Environment="LD_LIBRARY_PATH=."
+# ExecStart=/home/ubuntu/minecraft/bedrock_server
+
+# Minecraft needs a clean shutdown to save the world
+ExecStop=/bin/kill -s INT $MAINPID
+
+[Install]
+WantedBy=multi-user.target

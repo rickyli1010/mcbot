@@ -5,15 +5,14 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node --max-old-space-size=45 dist/index.js",
-    "build": "esbuild index.js --bundle --platform=node --minify --external:./aws-service.js --outfile=dist/index.js && esbuild aws-service.js --bundle --platform=node --minify --outfile=dist/aws-service.js",
+    "start": "node --max-old-space-size=65 index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-ec2": "^3.1000.0",
+    "aws4": "^1.12.0",
     "@dotenvx/dotenvx": "^1.59.1",
     "discord.js": "^14.25.1",
     "dotenv": "^17.3.1"

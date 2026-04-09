@@ -1,6 +1,9 @@
 # EC2 Auto-Shutdown Script Setup
 
-This directory contains `auto_shutdown.py`, a script that needs to run on your Minecraft EC2 instance. It checks the server status using `mcstatus`. If 0 players are online for 15 minutes, it automatically shuts down the instance to save you money.
+This directory contains `auto_shutdown.py` and `minecraft.service` configurations tailored for your specific server. It is split into `java/` and `bedrock/` folders. These scripts run on your Minecraft EC2 instance to check the server status using `mcstatus` and will automatically shut down the instance to save you money if 0 players are online for 15 minutes.
+
+## Important: Version split
+Before running `scp` to copy the files, make sure you navigate into either the `java/` or `bedrock/` folder depending on which server engine you installed on your EC2.
 
 ## Installation on EC2
 
@@ -14,7 +17,10 @@ This directory contains `auto_shutdown.py`, a script that needs to run on your M
     ```bash
     pip3 install mcstatus --break-system-packages
     ```
-4.  Copy `auto_shutdown.py` to your home directory (`/home/ubuntu/auto_shutdown.py`).
+4.  Copy `auto_shutdown.py` (from your chosen `java/` or `bedrock/` folder) to your EC2 home directory:
+    ```bash
+    scp -i yourkey.pem java/auto_shutdown.py ubuntu@YOUR_EC2_IP:/home/ubuntu/
+    ```
 5.  Make the script executable:
     ```bash
     chmod +x /home/ubuntu/auto_shutdown.py
@@ -43,7 +49,10 @@ You can verify this by running `sudo -l` and checking for `NOPASSWD: ALL`.
 
 To ensure your Minecraft server starts automatically every time your EC2 instance powers on (such as when the Discord bot starts the instance):
 
-1.  Upload `minecraft.service` to your EC2 instance.
+1.  Upload the `minecraft.service` file (from either the `java/` or `bedrock/` folder) to your EC2 home directory:
+    ```bash
+    scp -i yourkey.pem java/minecraft.service ubuntu@YOUR_EC2_IP:/home/ubuntu/
+    ```
 2.  Move it to the systemd directory:
     ```bash
     sudo mv minecraft.service /etc/systemd/system/

@@ -31,41 +31,42 @@ const client = new Client({
   })
 });
 
-// Lazy load AWS EC2 dependencies to completely shield RAM from massive 25MB SDK during websocket handshake
-let awsComponents = null;
+// Eradicated heavy AWS SDK. Using lightweight native fetch + aws4 signatures!
+const aws4 = require('aws4');
 
-function getAWS() {
-  if (!awsComponents) {
-    console.log('[AWS SDK] Dynamically compiling and loading massive SDK components into RAM...');
-    const aws = require('./aws-service.js');
-    
-    // Aggressively strip both leading/trailing spaces AND accidental quotes from the Discloud dashboard
-    const awsAccessKey = (process.env.AWS_ACCESS_KEY_ID || '').replace(/['"]/g, '').trim();
-    const awsSecretKey = (process.env.AWS_SECRET_ACCESS_KEY || '').replace(/['"]/g, '').trim();
+async function ec2Fetch(action) {
+  // Aggressively strip both leading/trailing spaces AND accidental quotes from the Discloud dashboard
+  const awsAccessKey = (process.env.AWS_ACCESS_KEY_ID || '')
+    .replace(/['"]/g, '')
+    .trim();
+  const awsSecretKey = (process.env.AWS_SECRET_ACCESS_KEY || '')
+    .replace(/['"]/g, '')
+    .trim();
 
-    console.log(`[AWS DEBUG] Detected Access Key ID: Length ${awsAccessKey.length}, Starts with: ${awsAccessKey.substring(0, 4)}`);
-    console.log(`[AWS DEBUG] Detected Secret Key: Length ${awsSecretKey.length}`);
-    
-    if (!awsAccessKey || !awsSecretKey) {
-      console.warn('[AWS WARNING] Access Key or Secret Key is completely empty! You must configure these in the Discloud dashboard Environment Variables.');
-    }
-    
-    // Explicitly pass trimmed credentials rather than trusting the SDK's raw process.env parser to survive copy-paste spaces
-    awsComponents = {
-      ec2: new aws.EC2Client({ 
-        region: AWS_REGION,
-        credentials: {
-          accessKeyId: awsAccessKey,
-          secretAccessKey: awsSecretKey
-        }
-      }),
-      DescribeInstancesCommand: aws.DescribeInstancesCommand,
-      StartInstancesCommand: aws.StartInstancesCommand,
-      StopInstancesCommand: aws.StopInstancesCommand
-    };
-    console.log('[AWS SDK] Booted!');
+  // Guard rails
+  if (!awsAccessKey || !awsSecretKey) {
+    console.error('CRITICAL ERROR: AWS Keys missing!');
+    throw new Error('AWS Keys missing on server');
   }
-  return awsComponents;
+
+  const host = `ec2.${AWS_REGION}.amazonaws.com`;
+  const queryPath = `/?Action=${action}&InstanceId.1=${INSTANCE_ID}&Version=2016-11-15`;
+
+  const opts = {
+    host: host,
+    path: queryPath,
+    service: 'ec2',
+    region: AWS_REGION,
+    method: 'GET'
+  };
+
+  // Generate AWS SigV4 Headers natively
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+
+  // Execute standard lightweight Node Fetch
+  const url = `https://${host}${queryPath}`;
+  const response = await fetch(url, { headers: opts.headers });
+  return await response.text(); // AWS natively returns XML text
 }
 
 // Define slash commands
@@ -89,31 +90,24 @@ const commands = [
   }
 ];
 
-// Register slash commands (already registered previously, no need to boot the heavy REST client on every start)
-// const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-/*
-async function registerCommands() {
-  try {
-    console.log('Started refreshing application (/) commands.');
-    await rest.put(Routes.applicationCommands(DISCORD_CLIENT_ID), {
-      body: commands
-    });
-    console.log('Successfully reloaded application (/) commands.');
-  } catch (error) {
-    console.error('Error registering commands:', error);
-  }
-}
-*/
-
 async function getInstanceState() {
-  const { ec2, DescribeInstancesCommand } = getAWS();
-  const command = new DescribeInstancesCommand({ InstanceIds: [INSTANCE_ID] });
-  const response = await ec2.send(command);
-  const instance = response.Reservations[0].Instances[0];
-  return {
-    state: instance.State.Name,
-    publicIp: instance.PublicIpAddress
-  };
+  try {
+    const xml = await ec2Fetch('DescribeInstances');
+
+    // Parse instance state using precise regex extraction to avoid loading a heavy XML parser
+    const safeStateMatch = xml.match(
+      /<instanceState>[\s\S]*?<name>(.*?)<\/name>/
+    );
+    const ipMatch = xml.match(/<ipAddress>(.*?)<\/ipAddress>/);
+
+    return {
+      state: safeStateMatch ? safeStateMatch[1] : 'unknown',
+      publicIp: ipMatch ? ipMatch[1] : null
+    };
+  } catch (err) {
+    console.error('Fetch Failed:', err);
+    return { state: 'network_error', publicIp: null };
+  }
 }
 
 // -------------------------------------------------------------
@@ -159,11 +153,8 @@ client.on('interactionCreate', async (interaction) => {
           await interaction.editReply(
             'Starting the Minecraft server... Please wait a minute or two for it to fully boot up.'
           );
-          const { ec2, StartInstancesCommand } = getAWS();
-          const startCommand = new StartInstancesCommand({
-            InstanceIds: [INSTANCE_ID]
-          });
-          await ec2.send(startCommand);
+
+          await ec2Fetch('StartInstances');
 
           // Optionally, we could poll until it's running to get the IP, but for now we just confirm it's starting
           await interaction.followUp(
@@ -182,11 +173,7 @@ client.on('interactionCreate', async (interaction) => {
           await interaction.editReply('The server is already stopped.');
         } else if (state === 'running') {
           await interaction.editReply('Stopping the Minecraft server...');
-          const { ec2, StopInstancesCommand } = getAWS();
-          const stopCommand = new StopInstancesCommand({
-            InstanceIds: [INSTANCE_ID]
-          });
-          await ec2.send(stopCommand);
+          await ec2Fetch('StopInstances');
 
           await interaction.followUp(
             'Stop command sent! The server is now shutting down.'
